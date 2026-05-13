@@ -1,0 +1,75 @@
+ NAME: UHIRIWE PRINCE
+       L3 SOD
+
+
+
+
+
+
+Activity 3 – Git Status & File Lifecycle
+Scenario 1
+# Create files
+touch readme.md script.py temp.txt
+git status
+
+# Modify and delete
+echo "print('hello')" > script.py
+rm temp.txt
+git status
+
+# Definitions:
+# Untracked: New files that Git is not yet recording or watching.
+# Modified: Files already known to Git that have changed since the last commit.
+
+
+
+Scenario 2
+
+bash
+# Check initial status
+git status
+
+# Modify and delete
+echo "/* styles */" > style.css
+rm old.js
+git status
+
+# The three sections you will see:
+# 1. Changes to be committed (Staged)
+# 2. Changes not staged for commit (Modified/Deleted)
+# 3. Untracked files (New files)
+
+
+Scenario 3
+bash
+# Create file and folder
+touch config.xml
+mkdir data && touch data/file.csv
+git status
+
+# Modify and delete
+echo "<config></config>" > config.xml
+rm data/file.csv
+git status
+
+# Untracked: config.xml (if never added) and the data/ folder.
+# Changes not staged: file.csv (Deleted).
+
+
+Activity 4– Staging files with git add
+Scenario 1(Selective staging)
+bash
+git add app.py utils.py
+git status
+
+
+Scenario 2 (Batch staging)
+bash
+git add *.js
+git status
+
+
+Scenario 3 (Whole folder)
+bash
+git add assets/
+git status
