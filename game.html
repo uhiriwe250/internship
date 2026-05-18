@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Last Spark - Jump Game</title>
+    <!-- Fixed Vue 3 CDN script source link -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #1a1a2e;
+            font-family: 'Arial', sans-serif;
+            color: white;
+            overflow: hidden;
+        }
+
+        #app {
+            text-align: center;
+        }
+
+        .game-container {
+            width: 600px;
+            height: 200px;
+            border: 4px solid #444;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(to bottom, #1a1a2e, #16213e);
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        /* Pip - The Protagonist */
+        .player {
+            width: 40px;
+            height: 40px;
+            background: #e67e22;
+            box-shadow: 0 0 15px #e67e22;
+            border-radius: 4px;
+            position: absolute;
+            left: 50px;
+            transition: none; 
+        }
+
+        .obstacle {
+            width: 30px;
+            height: 30px;
+            background: #e94560;
+            box-shadow: 0 0 10px #e94560;
+            position: absolute;
+            bottom: 0;
+        }
+
+        .score-board {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: #f7dc6f;
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 18px;
+            background: #e67e22;
+            border: none;
+            color: white;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        button:hover {
+            background: #d35400;
+        }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div class="score-board">Score: {{ score }}</div>
+    
+    <div class="game-container">
+        <!-- Overlay for both first-load and Game Over states -->
+        <div v-if="!gameStarted || gameOver" class="overlay">
+            <h1 v-if="gameOver">GAME OVER</h1>
+            <p v-if="gameOver">Final Score: {{ score }}</p>
+            <button @click="startGame">{{ gameOver ? 'Restart Game' : 'Start Game' }}</button>
+        </div>
+
+        <div class="player" :style="{ bottom: playerY + 'px' }"></div>
+
+        <div class="obstacle" :style="{ left: obstacleX + 'px' }"></div>
+    </div>
+    <p>Press <strong>SPACE</strong> to Jump</p>
+</div>
+
+<script>
+    const { createApp } = Vue;
+
+    createApp({
+        data() {
+            return {
+                score: 0,
+                gameStarted: false,
+                gameOver: false,
+                playerY: 0,
+                isJumping: false,
+                obstacleX: 600,
+                speed: 6,
+                animationId: null,
+                velocity: 0,
+                gravity: -0.6,
+                jumpForce: 12,
+                audioCtx: null
+            }
+        },
+        methods: {
+            initAudio() {
+                // Initialize the web audio graph inside user-click interaction context
+                if (!this.audioCtx) {
+                    this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            },
+            playStartSound() {
+                this.initAudio();
+                const ctx = this.audioCtx;
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(150, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(400, ctx.currentTime + 0.3);
+                
+                gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+                
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.3);
+            },
+            playJumpSound() {
+                this.initAudio();
+                const ctx = this.audioCtx;
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(200, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.15);
+                
+                gain.gain.setValueAtTime(0.2, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+                
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.15);
+            },
+            playCrashSound() {
+                this.initAudio();
+                const ctx = this.audioCtx;
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(180, ctx.currentTime);
+                osc.frequency.linearRampToValueAtTime(60, ctx.currentTime + 0.4);
+                
+                gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+                
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.4);
+            },
+            startGame() {
+                this.playStartSound();
+                this.score = 0;
+                this.gameStarted = true;
+                this.gameOver = false;
+                this.obstacleX = 600;
+                this.speed = 6;
+                this.playerY = 0;
+                this.velocity = 0;
+                this.isJumping = false;
+                
+                if (this.animationId) {
+                    cancelAnimationFrame(this.animationId);
+                }
+                this.gameLoop();
+            },
+            gameLoop() {
+                if (this.gameOver || !this.gameStarted) return;
+
+                if (this.isJumping) {
+                    this.velocity += this.gravity;
+                    this.playerY += this.velocity;
+
+                    if (this.playerY <= 0) {
+                        this.playerY = 0;
+                        this.velocity = 0;
+                        this.isJumping = false;
+                    }
+                }
+
+                this.obstacleX -= this.speed;
+
+                if (this.obstacleX < -30) {
+                    this.obstacleX = 650;
+                    this.incrementScore();
+                }
+
+                this.checkCollision();
+                this.animationId = requestAnimationFrame(this.gameLoop);
+            },
+            jump() {
+                if (this.isJumping || this.gameOver || !this.gameStarted) return;
+                
+                this.playJumpSound();
+                this.isJumping = true;
+                this.velocity = this.jumpForce;
+            },
+            checkCollision() {
+                const playerLeft = 50;
+                const playerRight = 90;
+                const playerBottom = this.playerY;
+
+                const obstacleLeft = this.obstacleX;
+                const obstacleRight = this.obstacleX + 30;
+                const obstacleTop = 30; 
+
+                if (
+                    playerLeft < obstacleRight &&
+                    playerRight > obstacleLeft &&
+                    playerBottom < obstacleTop
+                ) {
+                    this.playCrashSound();
+                    this.gameOver = true;
+                    cancelAnimationFrame(this.animationId);
+                }
+            },
+            incrementScore() {
+                this.score++;
+                if (this.score % 5 === 0) {
+                    this.speed += 0.5;
+                }
+            }
+        },
+        mounted() {
+            window.addEventListener('keydown', (e) => {
+                if (e.code === 'Space') {
+                    e.preventDefault();
+                    this.jump();
+                }
+            });
+        }
+    }).mount('#app');
+</script>
+
+</body>
+</html>
